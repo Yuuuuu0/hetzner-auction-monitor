@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# 获取工作目录，未指定则使用当前目录
-WORK_DIR=${1:-$(pwd)}
+# 获取当前脚本的目录
+WORK_DIR=$(dirname "$(realpath "$0")")
 
 # 初始化配置信息
 ENV_FILE="$WORK_DIR/.env"
