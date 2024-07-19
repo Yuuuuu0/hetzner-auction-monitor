@@ -1,12 +1,7 @@
 #!/bin/bash
 
-# 检查是否指定了工作目录
-if [ -z "$1" ]; then
-  echo "Usage: $0 <working_directory>"
-  exit 1
-fi
-
-WORK_DIR=$1
+# 获取工作目录，未指定则使用当前目录
+WORK_DIR=${1:-$(pwd)}
 
 # 初始化配置信息
 ENV_FILE="$WORK_DIR/.env"
@@ -19,7 +14,7 @@ if [ ! -f "$ENV_FILE" ]; then
   exit 0
 else
   echo ".env file exists. Updating LIVE_DATA_SB_JSON path."
-  sed -i "" "s|^LIVE_DATA_SB_JSON=.*|LIVE_DATA_SB_JSON=$LIVE_DATA_JSON|" "$ENV_FILE"
+  sed -i '' -e "s|^LIVE_DATA_SB_JSON=.*|LIVE_DATA_SB_JSON=$LIVE_DATA_JSON|" "$ENV_FILE"
 fi
 
 # 判断 logs 文件夹是否存在

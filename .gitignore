@@ -1,11 +1,12 @@
 # Python
 __pycache__/
-*.pyc
-*.pyo
+Pipfile
+Pipfile.lock
 .env
 
 # Environment
 venv/
+logs/
 
 # IDEs and editors
 .idea/
