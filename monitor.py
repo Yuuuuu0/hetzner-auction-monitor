@@ -25,7 +25,8 @@ def fetch_data():
 
 def filter_server(server):
     return (
-            CPU in server["description"] and
+            #CPU in server["description"] and
+            any(CPU in desc for desc in server["description"]) and
             any(RAM in desc for desc in server["description"]) and
             LOCATION in server["datacenter"] and
             server["traffic"] == TRAFFIC and
