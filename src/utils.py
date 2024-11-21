@@ -21,10 +21,11 @@ def setup_logging():
 # 从环境变量获取配置
 def get_config(prefix):
     return {
-        "BARK_PUSH_URL": os.getenv(f"{prefix}_BARK_PUSH_URL"),
-        "BARK_PUSH_KEY": os.getenv(f"{prefix}_BARK_PUSH_KEY"),
-        "TG_TOKEN": os.getenv(f"{prefix}_TG_TOKEN"),
-        "TG_CHAT_ID": os.getenv(f"{prefix}_TG_CHAT_ID"),
+        "BARK_PUSH_URL": os.getenv("BARK_PUSH_URL"),
+        "BARK_PUSH_KEY": os.getenv("BARK_PUSH_KEY"),
+        "NOTIFY_TITLE": os.getenv(f"{prefix}_NOTIFY_TITLE"),
+        "TG_TOKEN": os.getenv("TG_TOKEN"),
+        "TG_CHAT_ID": os.getenv("TG_CHAT_ID"),
         "CPU": os.getenv(f"{prefix}_CPU"),
         "RAM": os.getenv(f"{prefix}_RAM"),
         "LOCATION": os.getenv(f"{prefix}_LOCATION"),
@@ -35,30 +36,81 @@ def get_config(prefix):
 
 
 # 过滤服务器数据
-def filter_server(server, config):
-    if config["CPU"] and config["CPU"] not in server["cpu_fullname"]:
-        return False
-    if config["RAM"] and config["RAM"] not in server["ram_hr"]:
-        return False
-    if config["LOCATION"] and config["LOCATION"] not in server["datacenter"]:
-        return False
-    if config["TRAFFIC"] and server["traffic"] != config["TRAFFIC"]:
-        return False
-    if config["PRICE"] and server["price"] >= config["PRICE"]:
-        return False
+def filter_server(server, filters, field_map):
+    """
+    通用过滤逻辑
+    :param server: 当前服务器数据
+    :param filters: 用户定义的过滤条件
+    :param field_map: 字段映射
+    :return: 是否符合条件
+    """
+    for key, filter_value in filters.items():
+        if not filter_value:  # 如果过滤条件为空，跳过此条件
+            continue
+        field = field_map.get(key)  # 获取字段映射
+        if field is None:
+            continue
+
+        # 获取字段的实际值
+        server_value = server.get(field, None)
+
+        # 处理价格字段
+        if key == "PRICE":
+            try:
+                if float(server_value) >= float(filter_value):
+                    return False
+            except (TypeError, ValueError):
+                logging.error(f"价格过滤器异常: server_value={server_value}, filter_value={filter_value}")
+                return False
+
+        # 处理 RAM 字段（列表匹配）
+        elif key == "RAM":
+            if not any(filter_value in item for item in (server_value or [])):
+                return False
+
+        # 一般字段匹配
+        elif isinstance(server_value, list):
+            if filter_value not in server_value:
+                return False
+        else:
+            if filter_value not in str(server_value):  # 转为字符串匹配
+                return False
+
     return True
 
 
 # 格式化服务器描述
-def format_server_description(server):
-    price = server.get("price", "N/A")
-    name = server.get("name", "N/A")
-    id = server.get("id", "N/A")
-    cpu = server.get("cpu_fullname", "N/A")
-    ram = server.get("ram_hr", "N/A")
-    drives = ", ".join(server.get("hdd_arr", ["N/A"]))
-    location = server.get("datacenter", "N/A")
-    return f"Price：€{price}/month\nServer Name：{name}\nAuctionID：{id}\nCPU：{cpu}\nRAM：{ram}\nDrives：{drives}\nLocation：{location}\n"
+def format_server_description(server, field_map, custom_labels=None):
+    """
+    通用的服务器描述格式化函数
+    :param server: 当前服务器数据
+    :param field_map: 字段映射，用于动态提取字段
+    :param custom_labels: 自定义显示标签，默认为字段名
+    :return: 格式化后的字符串
+    """
+    custom_labels = custom_labels or {}
+    description_parts = []
+
+    for field, server_key in field_map.items():
+        value = server.get(server_key, "N/A")
+
+        # 如果值是列表，则处理每个元素
+        if isinstance(value, list):
+            if all(isinstance(item, dict) for item in value):
+                # 如果列表元素是字典，尝试提取主要字段
+                value = ", ".join([str(item.get("name", item)) for item in value])
+            else:
+                # 普通列表转换为字符串
+                value = ", ".join(map(str, value))
+
+        # 如果值是字典，直接转换为字符串
+        elif isinstance(value, dict):
+            value = json.dumps(value, ensure_ascii=False)
+
+        label = custom_labels.get(field, field)  # 如果没有自定义标签，使用字段名作为标签
+        description_parts.append(f"{label}：{value}")
+
+    return "\n".join(description_parts)
 
 
 # 发送推送消息
@@ -71,7 +123,7 @@ def send_telegram_msg(message, config):
     url = f"https://api.telegram.org/bot{config['TG_TOKEN']}/sendMessage"
     payload = {
         "chat_id": config["TG_CHAT_ID"],
-        "text": "Hetzner - 服务器监控\n\n" + message
+        "text": config["NOTIFY_TITLE"] + "\n\n" + message
     }
     headers = {"Content-Type": "application/json"}
     try:
@@ -93,7 +145,7 @@ def send_bark_notification(message, config):
         return True
 
     payload = json.dumps({
-        "title": "Hetzner - 服务器监控",
+        "title": config["NOTIFY_TITLE"],
         "body": message,
         "device_key": config["BARK_PUSH_KEY"]
     })
@@ -111,6 +163,7 @@ def send_bark_notification(message, config):
 # 统一消息发送
 def send_msg(message, config):
     return send_telegram_msg(message, config) and send_bark_notification(message, config)
+    # return send_bark_notification(message, config)
 
 
 # 获取服务器数据
@@ -121,5 +174,5 @@ def fetch_data(config):
 
 
 # 获取过滤后的服务器
-def get_filtered_servers(data, config):
-    return [server for server in data['server'] if filter_server(server, config)]
+def get_filtered_servers(data, filters, field_map):
+    return [server for server in data['server'] if filter_server(server, filters, field_map)]
