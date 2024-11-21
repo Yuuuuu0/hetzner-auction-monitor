@@ -16,7 +16,7 @@ filters = {
 }
 
 field_map = {
-    "Price": "price",
+    "PRICE": "price",
     "Name": "name",
     "AuctionID": "id",
     "CPU": "cpu_fullname",
@@ -26,7 +26,7 @@ field_map = {
 }
 
 custom_labels = {
-    "Price": "Price (€)",
+    "PRICE": "Price (€)",
     "Name": "Server Name",
     "AuctionID": "AuctionID",
     "RAM": "RAM (Detailed)"
