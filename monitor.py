@@ -24,14 +24,17 @@ def fetch_data():
 
 
 def filter_server(server):
-    return (
-            #CPU in server["description"] and
-            any(CPU in desc for desc in server["description"]) and
-            any(RAM in desc for desc in server["description"]) and
-            LOCATION in server["datacenter"] and
-            server["traffic"] == TRAFFIC and
-            server["price"] < PRICE
-    )
+    if CPU and CPU not in server["description"]:
+        return False
+    if RAM and not any(RAM in desc for desc in server["description"]):
+        return False
+    if LOCATION and LOCATION not in server["datacenter"]:
+        return False
+    if TRAFFIC and server["traffic"] != TRAFFIC:
+        return False
+    if PRICE and server["price"] >= PRICE:
+        return False
+    return True
 
 
 def get_filtered_servers(data):
