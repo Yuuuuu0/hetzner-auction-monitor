@@ -28,7 +28,7 @@ pip install -r requirements.txt
 
 ### 配置环境变量
 
-在项目根目录下创建一个 `.env` 文件，根据实例文件.env.example修改并配置内容
+在项目根目录下创建一个 `.env` 文件，根据示例文件.env.example修改并配置内容
 
 ### 运行脚本
 
